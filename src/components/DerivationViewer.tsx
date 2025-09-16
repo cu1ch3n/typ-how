@@ -69,7 +69,7 @@ export const DerivationViewer = ({
           
           <RuleTooltip 
             ruleId={step.ruleId}
-            rules={algorithm?.Rules ? getFlatRules(algorithm.Rules) : algorithm?.RuleGroups ? getFlatRules(algorithm.RuleGroups) : []}
+            rules={algorithm?.RuleGroups ? getFlatRules(algorithm.RuleGroups) : algorithm?.Rules ? getFlatRules(algorithm.Rules) : []}
             variant="secondary"
             className="text-xs font-medium ml-auto transition-smooth hover:scale-105"
           />
@@ -166,7 +166,7 @@ export const DerivationViewer = ({
             {viewMode === 'tree' ? (
               <TreeViewer 
                 steps={result.derivation}
-                rules={algorithm?.Rules ? getFlatRules(algorithm.Rules) : algorithm?.RuleGroups ? getFlatRules(algorithm.RuleGroups) : undefined}
+                rules={algorithm?.RuleGroups ? getFlatRules(algorithm.RuleGroups) : algorithm?.Rules ? getFlatRules(algorithm.Rules) : undefined}
                 onStepClick={onStepClick}
                 activeStepPath={activeStepPath}
                 activeRuleId={activeRuleId}
