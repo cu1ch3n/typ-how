@@ -37,8 +37,8 @@ export const AlgorithmProvider = ({ children }: AlgorithmProviderProps) => {
       // Clear algorithms immediately when starting fetch
       setAlgorithms([]);
       
-      // Add small delay to ensure WASM is ready in iframe environment
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Add small delay to ensure WASM source is loaded from localStorage
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       const metadata = await wasmInference.getMetadata();
       console.log('AlgorithmContext: Fetched algorithms:', metadata);

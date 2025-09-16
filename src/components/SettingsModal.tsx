@@ -76,13 +76,13 @@ export const SettingsModal = ({ open, onOpenChange, onWasmSourceChange }: Settin
           // Find the current source or use the first one
           const currentSource = parsed.find(s => s.url === localStorage.getItem('current-wasm-url')) || parsed[0];
           setSelectedSourceId(currentSource.id);
-          onWasmSourceChange(currentSource);
+          // Don't call onWasmSourceChange here as the WASM source is already loaded in wasmInterface
         }
       } catch (error) {
         console.error('Failed to load sources:', error);
       }
     }
-  }, [onWasmSourceChange]);
+  }, []);
 
   const saveSettings = () => {
     try {

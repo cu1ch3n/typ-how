@@ -366,6 +366,30 @@ export class WasmTypeInference {
   }
 }
 
-// Global instance - defaults to type-inference-zoo-wasm
-// Can be reconfigured to use different WASM engines via settings
-export const wasmInference = new WasmTypeInference();
+// Initialize WASM source from localStorage if available
+const initializeWasmSource = (): WasmTypeInference => {
+  const instance = new WasmTypeInference();
+  
+  // Try to load saved settings from localStorage
+  try {
+    const savedSources = localStorage.getItem('wasm-sources');
+    if (savedSources) {
+      const parsed = JSON.parse(savedSources);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Find the current source or use the first one
+        const currentSource = parsed.find(s => s.url === localStorage.getItem('current-wasm-url')) || parsed[0];
+        if (currentSource) {
+          instance.updateWasmSource(currentSource);
+          console.log(`WASM source loaded from localStorage: ${currentSource.name} (${currentSource.url})`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load WASM source from localStorage:', error);
+  }
+  
+  return instance;
+};
+
+// Global instance - initialized with saved settings if available
+export const wasmInference = initializeWasmSource();
