@@ -42,7 +42,7 @@ export const TreeViewer = ({
     if (expandedByDefault && steps.length > 0) {
       setExpandedSteps(initializeExpandedSteps());
     }
-  }, [steps, expandedByDefault]);
+  }, [steps.length, expandedByDefault]); // Only depend on length, not the entire steps array
 
   const toggleExpanded = (stepPath: string) => {
     const newExpanded = new Set(expandedSteps);

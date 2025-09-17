@@ -60,6 +60,8 @@ export class WasmTypeInference {
   private wasmSource: WasmSource;
   private isInitialized = false;
   private outputBuffer = '';
+  private activeInstances = new Set<WebAssembly.Instance>();
+  private maxConcurrentInstances = 2;
   
   constructor(wasmUrl = 'https://files.typ.how/zoo.wasm') {
     this.wasmSource = {
@@ -84,6 +86,7 @@ export class WasmTypeInference {
       };
       // Reset initialization when URL changes
       this.wasmModule = null;
+      this.clearActiveInstances();
       this.isInitialized = false;
       // eslint-disable-next-line no-console
       console.log(`WASM engine switched to: ${this.wasmSource.url}`);
@@ -100,6 +103,7 @@ export class WasmTypeInference {
       this.wasmSource = { ...newSource };
       // Reset initialization when source changes
       this.wasmModule = null;
+      this.clearActiveInstances();
       this.isInitialized = false;
       // eslint-disable-next-line no-console
       console.log(`WASM engine switched to: ${this.wasmSource.name} (${this.wasmSource.url})`);
@@ -112,6 +116,34 @@ export class WasmTypeInference {
 
   getWasmSource(): WasmSource {
     return { ...this.wasmSource };
+  }
+
+  private clearActiveInstances() {
+    this.activeInstances.clear();
+  }
+
+  private async createInstance(args: string[], env: string[], fds: any[]): Promise<{instance: WebAssembly.Instance, wasi: WASI}> {
+    if (!this.wasmModule) {
+      throw new Error('WASM module not loaded');
+    }
+
+    // Limit concurrent instances to prevent memory issues
+    if (this.activeInstances.size >= this.maxConcurrentInstances) {
+      // Wait a bit and try again
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const wasi = new WASI(args, env, fds);
+    const instance = await WebAssembly.instantiate(this.wasmModule, {
+      wasi_snapshot_preview1: wasi.wasiImport,
+    });
+
+    this.activeInstances.add(instance);
+    return { instance, wasi };
+  }
+
+  private cleanupInstance(instance: WebAssembly.Instance) {
+    this.activeInstances.delete(instance);
   }
 
   async initialize(): Promise<boolean> {
@@ -168,6 +200,9 @@ export class WasmTypeInference {
       
       const wasmBytes = await response.arrayBuffer();
       this.wasmModule = await WebAssembly.compile(wasmBytes);
+      
+      // Don't pre-instantiate - each call needs its own WASI configuration
+      
       this.isInitialized = true;
       
       console.log(`✅ Type inference engine loaded: ${this.wasmSource.url} (${wasmBytes.byteLength} bytes)`);
@@ -207,12 +242,14 @@ export class WasmTypeInference {
         }),
       ];
 
-      const wasi = new WASI(args, env, fds);
-      const instance = await WebAssembly.instantiate(this.wasmModule, {
-        wasi_snapshot_preview1: wasi.wasiImport,
-      });
-
-      wasi.start(instance as any);
+      const { instance, wasi } = await this.createInstance(args, env, fds);
+      
+      try {
+        wasi.start(instance as any);
+      } finally {
+        // Always cleanup the instance after use
+        this.cleanupInstance(instance);
+      }
 
       // Parse output as JSON or return as text
       const output = this.outputBuffer.trim();
@@ -272,12 +309,14 @@ export class WasmTypeInference {
         }),
       ];
 
-      const wasi = new WASI(args, env, fds);
-      const instance = await WebAssembly.instantiate(this.wasmModule, {
-        wasi_snapshot_preview1: wasi.wasiImport,
-      });
-
-      wasi.start(instance as any);
+      const { instance, wasi } = await this.createInstance(args, env, fds);
+      
+      try {
+        wasi.start(instance as any);
+      } finally {
+        // Always cleanup the instance after use
+        this.cleanupInstance(instance);
+      }
 
       // Parse output as JSON or return as text
       const output = this.outputBuffer.trim();
@@ -336,12 +375,14 @@ export class WasmTypeInference {
         }),
       ];
 
-      const wasi = new WASI(args, env, fds);
-      const instance = await WebAssembly.instantiate(this.wasmModule, {
-        wasi_snapshot_preview1: wasi.wasiImport,
-      });
-
-      wasi.start(instance as any);
+      const { instance, wasi } = await this.createInstance(args, env, fds);
+      
+      try {
+        wasi.start(instance as any);
+      } finally {
+        // Always cleanup the instance after use
+        this.cleanupInstance(instance);
+      }
 
       // Parse output as JSON
       const output = this.outputBuffer.trim();
@@ -360,9 +401,22 @@ export class WasmTypeInference {
 
   destroy() {
     this.wasmModule = null;
+    this.clearActiveInstances();
     this.isInitialized = false;
+    this.outputBuffer = '';
     // eslint-disable-next-line no-console
     console.log('Type inference engine unloaded');
+  }
+
+  // Clean up periodically to prevent memory leaks
+  cleanup() {
+    // Clear any lingering instances
+    this.clearActiveInstances();
+    
+    // Force garbage collection if available
+    if (typeof global !== 'undefined' && global.gc) {
+      global.gc();
+    }
   }
 }
 

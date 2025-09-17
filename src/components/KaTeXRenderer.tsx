@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -11,7 +11,7 @@ interface KaTeXRendererProps {
   isClickable?: boolean;
 }
 
-export const KaTeXRenderer = ({ 
+export const KaTeXRenderer = memo(({ 
   expression, 
   displayMode = false, 
   className = '',
@@ -50,4 +50,4 @@ export const KaTeXRenderer = ({
       style={isMobile ? { scrollbarWidth: 'thin' } : undefined}
     />
   );
-};
+});

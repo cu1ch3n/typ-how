@@ -129,7 +129,6 @@ export const DerivationViewer = ({
 
   return (
     <div 
-      key={`${algorithm?.Id}-${expression}-${result?.success}-${result?.derivation?.length}`}
       className="space-y-4" 
       data-derivation-viewer
     >

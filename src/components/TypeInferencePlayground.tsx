@@ -214,6 +214,10 @@ export const TypeInferencePlayground = () => {
       });
     } finally {
       setIsInferring(false);
+      // Cleanup after each inference to prevent memory buildup
+      setTimeout(() => {
+        wasmInference.cleanup();
+      }, 1000);
     }
   };
 
@@ -296,10 +300,26 @@ export const TypeInferencePlayground = () => {
     if (initialized && expression.trim() && selectedAlgorithm) {
       const timer = setTimeout(() => {
         handleInference();
-      }, 300);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [selectedAlgorithm, selectedVariant, expression, initialized]);
+
+  // Cleanup WASM instance periodically to prevent memory leaks
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      wasmInference.cleanup();
+    }, 10000); // Clean up every 10 seconds
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
+  // Additional cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      wasmInference.cleanup();
+    };
+  }, []);
 
 
 
