@@ -1002,6 +1002,8 @@ export const Compare = () => {
                       maxSize={40} 
                       collapsible={true}
                       collapsedSize={3}
+                      onCollapse={() => setAlgorithmsCollapsed(true)}
+                      onExpand={() => setAlgorithmsCollapsed(false)}
                     >
                       {algorithmsCollapsed ? (
                         <div 
@@ -1091,6 +1093,8 @@ export const Compare = () => {
                       maxSize={40} 
                       collapsible={true}
                       collapsedSize={3}
+                      onCollapse={() => setExpressionCollapsed(true)}
+                      onExpand={() => setExpressionCollapsed(false)}
                     >
                       {expressionCollapsed ? (
                         <div 
