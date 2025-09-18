@@ -11,13 +11,19 @@ interface WasmSource {
   authPassword?: string;
   isLocal?: boolean;
   createdAt: number;
+  lastUpdated?: string;
+}
+
+interface WasmLoadResult {
+  arrayBuffer: ArrayBuffer;
+  lastModified?: string;
 }
 
 export const useWasmLoader = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadWasmWithAuth = useCallback(async (source: WasmSource): Promise<ArrayBuffer> => {
+  const loadWasmWithAuth = useCallback(async (source: WasmSource): Promise<WasmLoadResult> => {
     setIsLoading(true);
     setError(null);
 
@@ -70,9 +76,16 @@ export const useWasmLoader = () => {
       }
 
       const arrayBuffer = await response.arrayBuffer();
+      const lastModified = response.headers.get('Last-Modified');
       console.log(`WASM loaded successfully: ${arrayBuffer.byteLength} bytes`);
+      if (lastModified) {
+        console.log(`Last-Modified: ${lastModified}`);
+      }
       
-      return arrayBuffer;
+      return {
+        arrayBuffer,
+        lastModified: lastModified || undefined
+      };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error loading WASM';
       setError(errorMessage);

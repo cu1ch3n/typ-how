@@ -14,6 +14,7 @@ interface WasmSource {
   authPassword?: string;
   isLocal?: boolean;
   createdAt: number;
+  lastUpdated?: string;
 }
 
 export interface InferenceRequest {
@@ -66,7 +67,7 @@ export class WasmTypeInference {
   constructor(wasmUrl = 'https://files.typ.how/zoo.wasm') {
     this.wasmSource = {
       id: 'default',
-      name: 'Default WASM',
+      name: 'Type Inference Zoo (Default)',
       url: wasmUrl,
       authType: 'none',
       isLocal: false,
@@ -199,6 +200,15 @@ export class WasmTypeInference {
       }
       
       const wasmBytes = await response.arrayBuffer();
+      const lastModified = response.headers.get('Last-Modified');
+      
+      // Update the source's lastUpdated field if we got a Last-Modified header
+      if (lastModified) {
+        this.wasmSource.lastUpdated = lastModified;
+        this.updateSourceInStorage();
+        console.log(`Last-Modified: ${lastModified}`);
+      }
+      
       this.wasmModule = await WebAssembly.compile(wasmBytes);
       
       // Don't pre-instantiate - each call needs its own WASI configuration
@@ -396,6 +406,27 @@ export class WasmTypeInference {
       // eslint-disable-next-line no-console
       console.error('WASM metadata error:', error);
       throw error;
+    }
+  }
+
+  private updateSourceInStorage() {
+    try {
+      const STORAGE_KEY = 'wasm-sources';
+      const savedSources = localStorage.getItem(STORAGE_KEY);
+      if (savedSources) {
+        const sources = JSON.parse(savedSources);
+        const sourceIndex = sources.findIndex((s: WasmSource) => s.id === this.wasmSource.id);
+        if (sourceIndex !== -1) {
+          sources[sourceIndex] = this.wasmSource;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
+          // Dispatch event to notify components of the update
+          window.dispatchEvent(new CustomEvent('wasmSourceUpdated', { 
+            detail: { source: this.wasmSource } 
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update source in storage:', error);
     }
   }
 

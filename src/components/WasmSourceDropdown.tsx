@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, Settings, Check } from 'lucide-react';
+import { ChevronDown, Settings, Check, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu,
@@ -17,6 +17,7 @@ interface WasmSource {
   authType?: 'none' | 'bearer' | 'basic' | 'header' | 'presigned';
   isLocal?: boolean;
   createdAt: number;
+  lastUpdated?: string;
 }
 
 interface WasmSourceDropdownProps {
@@ -25,6 +26,15 @@ interface WasmSourceDropdownProps {
 }
 
 const STORAGE_KEY = 'wasm-sources';
+
+const formatLastUpdated = (lastUpdated: string): string => {
+  try {
+    const date = new Date(lastUpdated);
+    return date.toLocaleString();
+  } catch {
+    return lastUpdated;
+  }
+};
 
 export const WasmSourceDropdown = ({ onWasmSourceChange, onOpenSettings }: WasmSourceDropdownProps) => {
   const [sources, setSources] = useState<WasmSource[]>([]);
@@ -83,10 +93,13 @@ export const WasmSourceDropdown = ({ onWasmSourceChange, onOpenSettings }: WasmS
     window.addEventListener('storage', handleStorageChange);
     // Also listen for custom event when WASM URL changes
     window.addEventListener('wasmUrlChanged', handleStorageChange);
+    // Listen for WASM source updates (e.g., lastUpdated field)
+    window.addEventListener('wasmSourceUpdated', handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('wasmUrlChanged', handleStorageChange);
+      window.removeEventListener('wasmSourceUpdated', handleStorageChange);
     };
   }, []);
 
@@ -135,8 +148,11 @@ export const WasmSourceDropdown = ({ onWasmSourceChange, onOpenSettings }: WasmS
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium truncate">
+                <div className="text-sm font-medium truncate flex items-center gap-1">
                   {source.name}
+                  {source.authType !== 'none' && (
+                    <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                  )}
                   {source.isLocal && (
                     <Badge variant="secondary" className="ml-1 text-xs">
                       Local
@@ -146,9 +162,9 @@ export const WasmSourceDropdown = ({ onWasmSourceChange, onOpenSettings }: WasmS
                 <div className="text-xs text-muted-foreground truncate font-mono">
                   {source.url}
                 </div>
-                {source.authType !== 'none' && (
+                {source.lastUpdated && (
                   <div className="text-xs text-muted-foreground">
-                    Auth: {source.authType}
+                    Updated: {formatLastUpdated(source.lastUpdated)}
                   </div>
                 )}
               </div>

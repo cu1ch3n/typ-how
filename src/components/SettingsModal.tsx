@@ -26,6 +26,7 @@ interface WasmSource {
   authPassword?: string;
   isLocal?: boolean;
   createdAt: number;
+  lastUpdated?: string;
 }
 
 interface SettingsModalProps {
