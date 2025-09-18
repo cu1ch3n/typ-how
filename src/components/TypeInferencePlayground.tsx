@@ -23,7 +23,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 import { TypingRules } from './TypingRules';
 import { ZoomDialog } from './ZoomDialog';
-import { WasmStatusIndicator } from './WasmStatusIndicator';
 import { DerivationViewer } from './DerivationViewer';
 import { ShareExportButtons } from './ShareExportButtons';
 import { useAlgorithms } from '@/contexts/AlgorithmContext';

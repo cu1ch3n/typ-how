@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { WasmStatusIndicator } from './WasmStatusIndicator';
+import { WasmSourceDropdown } from './WasmSourceDropdown';
 
 import { SettingsModal } from './SettingsModal';
 import { wasmInference } from '@/lib/wasmInterface';
@@ -121,8 +121,11 @@ export const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* WASM Status - Always visible */}
-            <WasmStatusIndicator onClick={() => setSettingsModalOpen(true)} />
+            {/* WASM Source Dropdown - Quick switching */}
+            <WasmSourceDropdown 
+              onWasmSourceChange={handleWasmSourceChange}
+              onOpenSettings={() => setSettingsModalOpen(true)}
+            />
           </div>
         </div>
       </div>
