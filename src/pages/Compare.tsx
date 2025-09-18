@@ -192,18 +192,22 @@ export const Compare = () => {
   // Panel collapse handlers
   const handleCollapseAlgorithms = () => {
     algorithmsRef.current?.collapse();
+    setAlgorithmsCollapsed(true);
   };
 
   const handleExpandAlgorithms = () => {
     algorithmsRef.current?.expand();
+    setAlgorithmsCollapsed(false);
   };
 
   const handleCollapseExpression = () => {
     expressionRef.current?.collapse();
+    setExpressionCollapsed(true);
   };
 
   const handleExpandExpression = () => {
     expressionRef.current?.expand();
+    setExpressionCollapsed(false);
   };
 
   // Configure sensors for both mouse and touch
@@ -581,7 +585,7 @@ export const Compare = () => {
           Expressions
         </h3>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setExpressionCollapsed(true)} className="h-6 w-6 p-0 opacity-60 hover:opacity-100 transition-smooth">
+          <Button variant="ghost" size="sm" onClick={handleCollapseExpression} className="h-6 w-6 p-0 opacity-60 hover:opacity-100 transition-smooth">
             <Minus className="h-3 w-3" />
           </Button>
           {expressions.length > 0 && (
@@ -813,7 +817,7 @@ export const Compare = () => {
                     <CardHeader className="flex flex-row items-center justify-between pb-3">
                       <CardTitle className="text-base">Expressions</CardTitle>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => setExpressionCollapsed(true)} className="h-6 w-6 p-0 opacity-60 hover:opacity-100 transition-smooth">
+                        <Button variant="ghost" size="sm" onClick={handleCollapseExpression} className="h-6 w-6 p-0 opacity-60 hover:opacity-100 transition-smooth">
                           <Minus className="h-3 w-3" />
                         </Button>
                         {expressions.length > 0 && (
@@ -998,8 +1002,6 @@ export const Compare = () => {
                       maxSize={40} 
                       collapsible={true}
                       collapsedSize={3}
-                      onCollapse={() => setAlgorithmsCollapsed(true)}
-                      onExpand={() => setAlgorithmsCollapsed(false)}
                     >
                       {algorithmsCollapsed ? (
                         <div 
@@ -1089,8 +1091,6 @@ export const Compare = () => {
                       maxSize={40} 
                       collapsible={true}
                       collapsedSize={3}
-                      onCollapse={() => setExpressionCollapsed(true)}
-                      onExpand={() => setExpressionCollapsed(false)}
                     >
                       {expressionCollapsed ? (
                         <div 
