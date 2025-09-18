@@ -42,11 +42,38 @@ export interface MetadataRequest {
   command: "--meta";
 }
 
+// TextMate grammar interfaces
+export interface TextMateGrammar {
+  name: string;
+  scopeName: string;
+  patterns: any[];
+  repository?: Record<string, any>;
+  fileTypes?: string[];
+  firstLineMatch?: string;
+  foldingStartMarker?: string;
+  foldingStopMarker?: string;
+}
+
+export interface SyntaxHighlightingData {
+  grammar: TextMateGrammar;
+  language: string;
+  theme?: string;
+}
+
+export interface SyntaxHighlightingRequest {
+  command: "grammar";
+  options?: {
+    includeComments?: boolean;
+    includeWhitespace?: boolean;
+  };
+}
+
 export interface InferenceResponse {
   success: boolean;
   result?: Record<string, unknown>;
   error?: string;
   steps?: Array<Record<string, unknown>>;
+  syntaxHighlighting?: SyntaxHighlightingData;
 }
 
 export interface SubtypingResponse {
@@ -54,6 +81,7 @@ export interface SubtypingResponse {
   result?: Record<string, unknown>;
   error?: string;
   steps?: Array<Record<string, unknown>>;
+  syntaxHighlighting?: SyntaxHighlightingData;
 }
 
 export class WasmTypeInference {
@@ -427,6 +455,69 @@ export class WasmTypeInference {
       }
     } catch (error) {
       console.error('Failed to update source in storage:', error);
+    }
+  }
+
+  async requestTextMateGrammar(request: SyntaxHighlightingRequest): Promise<SyntaxHighlightingData> {
+    if (!this.isInitialized) {
+      const initialized = await this.initialize();
+      if (!initialized) {
+        throw new Error('WASM module not available');
+      }
+    }
+
+    try {
+      if (!this.wasmModule) {
+        throw new Error('WASM module not loaded');
+      }
+
+      // Reset output buffer
+      this.outputBuffer = '';
+
+      // Prepare command line arguments for grammar request
+      const args = ['grammar'];
+      if (request.options?.includeComments) {
+        args.push('--include-comments');
+      }
+      if (request.options?.includeWhitespace) {
+        args.push('--include-whitespace');
+      }
+      
+      const env: string[] = [];
+      
+      const fds = [
+        null, // stdin
+        ConsoleStdout.lineBuffered((msg) => {
+          this.outputBuffer += `${msg}\n`;
+        }),
+      ];
+
+      const { instance, wasi } = await this.createInstance(args, env, fds);
+      
+      try {
+        wasi.start(instance as any);
+      } finally {
+        // Always cleanup the instance after use
+        this.cleanupInstance(instance);
+      }
+
+      // Parse output as JSON
+      const output = this.outputBuffer.trim();
+      
+      try {
+        const result = JSON.parse(output);
+        return {
+          grammar: result.grammar || result,
+          language: result.language || 'text',
+          theme: result.theme
+        };
+      } catch {
+        throw new Error('Failed to parse TextMate grammar JSON from WASM');
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('WASM TextMate grammar error:', error);
+      throw error;
     }
   }
 

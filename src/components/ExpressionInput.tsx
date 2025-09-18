@@ -8,6 +8,7 @@ import { TypeInferenceAlgorithm } from '@/types/inference';
 import { HelpModal } from './HelpModal';
 import { ExpressionHistory } from './ExpressionHistory';
 import { LatexText } from './LatexText';
+import { MonacoEditor, MonacoEditorRef } from './MonacoEditor';
 
 interface ExpressionInputProps {
   expression: string;
@@ -19,7 +20,7 @@ interface ExpressionInputProps {
   selectedVariant?: string;
 }
 
-export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputProps>(({
+export const ExpressionInput = forwardRef<MonacoEditorRef, ExpressionInputProps>(({
   expression,
   onExpressionChange,
   onInfer,
@@ -183,15 +184,16 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
           <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <div className="space-y-3">
               {/* Left Type Input */}
-              <div className="relative">
-                <Textarea 
+              <div className="relative border border-muted-foreground/20 rounded-md overflow-hidden">
+                <MonacoEditor
                   value={leftType} 
-                  onChange={e => setLeftType(e.target.value)} 
+                  onChange={setLeftType} 
                   placeholder="Left type (e.g., Int, Top -> Int, mu a. a -> Int)" 
-                  className="font-code text-xs sm:text-sm bg-code min-h-[120px] resize-none pr-16 pl-3 border-muted-foreground/20 focus:border-primary transition-smooth focus:shadow-lg focus:shadow-primary/10 touch-manipulation" 
-                  spellCheck={false} 
+                  height="120px"
+                  enableSyntaxHighlighting={true}
+                  className="min-h-[120px]"
                 />
-                <div className="absolute top-2 right-2 text-xs text-muted-foreground font-medium">
+                <div className="absolute top-2 right-2 text-xs text-muted-foreground font-medium z-10 bg-background/80 px-1 rounded">
                   Left
                 </div>
                 {leftType.trim() && (
@@ -199,7 +201,7 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
                     onClick={() => setLeftType('')} 
                     variant="ghost" 
                     size="sm" 
-                    className="absolute bottom-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-60 hover:opacity-100 transition-smooth"
+                    className="absolute bottom-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-60 hover:opacity-100 transition-smooth z-10"
                   >
                     <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 hover:rotate-180" />
                   </Button>
@@ -214,15 +216,16 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
               </div>
 
               {/* Right Type Input */}
-              <div className="relative">
-                <Textarea 
+              <div className="relative border border-muted-foreground/20 rounded-md overflow-hidden">
+                <MonacoEditor
                   value={rightType} 
-                  onChange={e => setRightType(e.target.value)} 
+                  onChange={setRightType} 
                   placeholder="Right type (e.g., Top, a -> Int, mu a. a -> Int)" 
-                  className="font-code text-xs sm:text-sm bg-code min-h-[120px] resize-none pr-16 pl-3 border-muted-foreground/20 focus:border-primary transition-smooth focus:shadow-lg focus:shadow-primary/10 touch-manipulation" 
-                  spellCheck={false} 
+                  height="120px"
+                  enableSyntaxHighlighting={true}
+                  className="min-h-[120px]"
                 />
-                <div className="absolute top-2 right-2 text-xs text-muted-foreground font-medium">
+                <div className="absolute top-2 right-2 text-xs text-muted-foreground font-medium z-10 bg-background/80 px-1 rounded">
                   Right
                 </div>
                 {rightType.trim() && (
@@ -230,7 +233,7 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
                     onClick={() => setRightType('')} 
                     variant="ghost" 
                     size="sm" 
-                    className="absolute bottom-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-60 hover:opacity-100 transition-smooth"
+                    className="absolute bottom-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-60 hover:opacity-100 transition-smooth z-10"
                   >
                     <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 hover:rotate-180" />
                   </Button>
@@ -360,7 +363,7 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
         </div>
 
         <div className="animate-fade-in flex-1 flex flex-col" style={{ animationDelay: '0.2s' }}>
-          <div className="relative flex-1 flex flex-col">
+          <div className="relative flex-1 flex flex-col border border-muted-foreground/20 rounded-md overflow-hidden">
             <Button 
               variant="ghost" 
               size="sm" 
@@ -369,13 +372,14 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
             >
               <HelpCircle className="w-3 h-3" />
             </Button>
-            <Textarea 
+            <MonacoEditor
               ref={ref}
               value={expression} 
-              onChange={e => onExpressionChange(e.target.value)} 
+              onChange={onExpressionChange} 
               placeholder="Please enter an expression. For example, (\x. x) 1" 
-              className="font-code text-xs sm:text-sm bg-code h-full resize-none pr-12 pl-8 border-muted-foreground/20 focus:border-primary transition-smooth focus:shadow-lg focus:shadow-primary/10 touch-manipulation" 
-              spellCheck={false} 
+              height="100%"
+              enableSyntaxHighlighting={true}
+              className="h-full"
             />
             {/* Clear button - top right */}
             {expression.trim() && (
@@ -383,7 +387,7 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
                 onClick={handleClear} 
                 variant="ghost" 
                 size="sm" 
-                className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-60 hover:opacity-100 transition-smooth"
+                className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-60 hover:opacity-100 transition-smooth z-10"
               >
                 <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 hover:rotate-180" />
               </Button>
@@ -394,7 +398,7 @@ export const ExpressionInput = forwardRef<HTMLTextAreaElement, ExpressionInputPr
               disabled={!expression.trim() || isInferring} 
               size="sm" 
               className={`
-                absolute bottom-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 
+                absolute bottom-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 z-10
                 btn-interactive transition-smooth touch-manipulation
                 ${isInferring ? 'animate-pulse glow-primary' : 'hover:glow-primary'}
                 ${!expression.trim() ? 'opacity-50' : ''}
