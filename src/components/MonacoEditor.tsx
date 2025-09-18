@@ -4,6 +4,8 @@ import { useTheme } from 'next-themes';
 import { TextMateGrammar, SyntaxHighlightingData } from '@/lib/wasmInterface';
 import { wasmInference } from '@/lib/wasmInterface';
 import * as monaco from 'monaco-editor';
+import { Registry } from 'monaco-textmate';
+import { loadWASM } from 'onigasm';
 
 interface MonacoEditorProps {
   value: string;
@@ -37,11 +39,15 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
   const [grammarLoaded, setGrammarLoaded] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('text');
   const { theme, resolvedTheme } = useTheme();
+  const registryRef = useRef<Registry | null>(null);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     focus: () => editorRef.current?.focus(),
-    blur: () => editorRef.current?.blur(),
+    blur: () => {
+      // Monaco Editor doesn't have a blur method, so we focus on the document body
+      document.body.focus();
+    },
     getValue: () => editorRef.current?.getValue() || '',
     setValue: (newValue: string) => editorRef.current?.setValue(newValue),
     getModel: () => editorRef.current?.getModel() || null
@@ -64,7 +70,7 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
         }
       });
       
-      // Register the grammar with Monaco
+      // Register the grammar with Monaco using monaco-textmate
       await registerTextMateGrammar(result.grammar, result.language);
       setCurrentLanguage(result.language);
       setGrammarLoaded(true);
@@ -77,94 +83,49 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
     }
   };
 
-  // Register TextMate grammar with Monaco Editor
+  // Register TextMate grammar with Monaco Editor using monaco-textmate
   const registerTextMateGrammar = async (grammar: TextMateGrammar, languageId: string) => {
     try {
-      // Convert TextMate grammar to Monaco language configuration
-      const languageConfig = convertTextMateToMonaco(grammar);
-      
+      // Initialize registry if not already done
+      if (!registryRef.current) {
+        // Load WASM for onigasm (required by monaco-textmate)
+        await loadWASM(undefined);
+        registryRef.current = new Registry({
+          getGrammarDefinition: async (scopeName: string) => {
+            return {
+              format: 'json',
+              content: JSON.stringify(grammar)
+            };
+          }
+        });
+      }
+
       // Register the language with Monaco
       monaco.languages.register({ id: languageId });
       
-      // Set the language configuration
-      monaco.languages.setLanguageConfiguration(languageId, languageConfig.configuration);
-      
-      // Set the tokens provider
-      monaco.languages.setTokensProvider(languageId, languageConfig.tokensProvider);
+      // Set the tokens provider using monaco-textmate
+      const grammarDefinition = await registryRef.current.loadGrammar(grammar.scopeName || languageId);
+      if (grammarDefinition) {
+        monaco.languages.setTokensProvider(languageId, {
+          getInitialState: () => null,
+          tokenize: (line: string, state: any) => {
+            const result = grammarDefinition.tokenizeLine(line, state);
+            return {
+              tokens: result.tokens.map(token => ({
+                startIndex: token.startIndex,
+                scopes: token.scopes.join(' ')
+              })),
+              endState: result.ruleStack
+            };
+          }
+        });
+      }
       
       console.log(`TextMate grammar registered for language: ${languageId}`);
     } catch (error) {
       console.error('Failed to register TextMate grammar:', error);
       throw error;
     }
-  };
-
-  // Convert TextMate grammar to Monaco format
-  const convertTextMateToMonaco = (grammar: TextMateGrammar) => {
-    // This is a simplified conversion - in a real implementation,
-    // you'd want to use a library like monaco-textmate for proper conversion
-    const configuration: monaco.languages.LanguageConfiguration = {
-      comments: {
-        lineComment: '//',
-        blockComment: ['/*', '*/']
-      },
-      brackets: [
-        ['{', '}'],
-        ['[', ']'],
-        ['(', ')']
-      ],
-      autoClosingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"' },
-        { open: "'", close: "'" }
-      ],
-      surroundingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"' },
-        { open: "'", close: "'" }
-      ]
-    };
-
-    // Create a basic token provider based on TextMate patterns
-    const tokensProvider: monaco.languages.TokensProvider = {
-      getInitialState: () => null,
-      tokenize: (line: string, state: any) => {
-        const tokens: monaco.languages.IToken[] = [];
-        let lastIndex = 0;
-
-        // Simple pattern matching based on TextMate grammar
-        for (const pattern of grammar.patterns) {
-          if (pattern.match) {
-            const regex = new RegExp(pattern.match, 'g');
-            let match;
-            while ((match = regex.exec(line)) !== null) {
-              if (match.index >= lastIndex) {
-                const scopes = pattern.captures ? 
-                  Object.values(pattern.captures).map((c: any) => c.name) : 
-                  [pattern.name || 'default'];
-                
-                tokens.push({
-                  startIndex: match.index,
-                  scopes: scopes
-                });
-                lastIndex = match.index + match[0].length;
-              }
-            }
-          }
-        }
-
-        return {
-          tokens,
-          endState: state
-        };
-      }
-    };
-
-    return { configuration, tokensProvider };
   };
 
   // Load grammar on mount
@@ -174,12 +135,6 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
 
   const handleEditorDidMount = (editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
-    
-    // Set placeholder if provided
-    if (placeholder) {
-      editor.setValue(placeholder);
-      editor.setValue(value || '');
-    }
   };
 
   const handleEditorChange = (newValue: string | undefined) => {
@@ -219,13 +174,11 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
             verticalScrollbarSize: 8,
             horizontalScrollbarSize: 8
           },
-          wordWrap: 'on',
+          wordWrap: 'bounded',
+          wordWrapColumn: 80,
           automaticLayout: true,
-          padding: { top: 8, bottom: 8, left: 8, right: 8 },
-          placeholder: placeholder ? {
-            value: placeholder,
-            isTrusted: true
-          } : undefined
+          padding: { top: 8, bottom: 8 },
+          placeholder: placeholder
         }}
         theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs'}
       />
