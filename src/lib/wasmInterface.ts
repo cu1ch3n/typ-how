@@ -475,7 +475,7 @@ export class WasmTypeInference {
       this.outputBuffer = '';
 
       // Prepare command line arguments for grammar request
-      const args = ['grammar'];
+      const args = ['--grammar'];
       if (request.options?.includeComments) {
         args.push('--include-comments');
       }
