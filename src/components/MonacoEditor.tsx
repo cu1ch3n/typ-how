@@ -7,6 +7,17 @@ import * as monaco from 'monaco-editor';
 import { Registry } from 'monaco-textmate';
 import { loadWASM } from 'onigasm';
 
+// Global cache for grammar loading to prevent multiple instances from loading the same grammar
+let grammarCache: {
+  promise: Promise<SyntaxHighlightingData> | null;
+  data: SyntaxHighlightingData | null;
+  registry: Registry | null;
+} = {
+  promise: null,
+  data: null,
+  registry: null
+};
+
 interface MonacoEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -39,7 +50,6 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
   const [grammarLoaded, setGrammarLoaded] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('text');
   const { theme, resolvedTheme } = useTheme();
-  const registryRef = useRef<Registry | null>(null);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -53,25 +63,62 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
     getModel: () => editorRef.current?.getModel() || null
   }));
 
-  // Load TextMate grammar from WASM
+  // Load TextMate grammar from WASM (with global caching)
   const loadTextMateGrammar = async () => {
     if (!enableSyntaxHighlighting) {
       onSyntaxHighlightingChange?.(null);
       return;
     }
 
+    // If grammar is already loaded, use cached data
+    if (grammarCache.data) {
+      setCurrentLanguage(grammarCache.data.language);
+      setGrammarLoaded(true);
+      onSyntaxHighlightingChange?.(grammarCache.data);
+      return;
+    }
+
+    // If grammar is currently being loaded, wait for it
+    if (grammarCache.promise) {
+      setIsLoading(true);
+      try {
+        const result = await grammarCache.promise;
+        setCurrentLanguage(result.language);
+        setGrammarLoaded(true);
+        onSyntaxHighlightingChange?.(result);
+      } catch (error) {
+        console.warn('Failed to load TextMate grammar, using fallback:', error);
+        onSyntaxHighlightingChange?.(null);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Start loading grammar
     setIsLoading(true);
+    grammarCache.promise = (async () => {
+      try {
+        const result = await wasmInference.requestTextMateGrammar({
+          command: 'grammar',
+          options: {
+            includeComments: true,
+            includeWhitespace: false
+          }
+        });
+
+        // Register the grammar with Monaco using monaco-textmate
+        await registerTextMateGrammar(result.grammar, result.language);
+        grammarCache.data = result;
+        return result;
+      } catch (error) {
+        grammarCache.promise = null;
+        throw error;
+      }
+    })();
+
     try {
-      const result = await wasmInference.requestTextMateGrammar({
-        command: 'grammar',
-        options: {
-          includeComments: true,
-          includeWhitespace: false
-        }
-      });
-      
-      // Register the grammar with Monaco using monaco-textmate
-      await registerTextMateGrammar(result.grammar, result.language);
+      const result = await grammarCache.promise;
       setCurrentLanguage(result.language);
       setGrammarLoaded(true);
       onSyntaxHighlightingChange?.(result);
@@ -86,11 +133,11 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
   // Register TextMate grammar with Monaco Editor using monaco-textmate
   const registerTextMateGrammar = async (grammar: TextMateGrammar, languageId: string) => {
     try {
-      // Initialize registry if not already done
-      if (!registryRef.current) {
+      // Initialize registry if not already done (use global cache)
+      if (!grammarCache.registry) {
         // Load WASM for onigasm (required by monaco-textmate)
         await loadWASM(undefined);
-        registryRef.current = new Registry({
+        grammarCache.registry = new Registry({
           getGrammarDefinition: async (scopeName: string) => {
             return {
               format: 'json',
@@ -100,11 +147,15 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
         });
       }
 
-      // Register the language with Monaco
-      monaco.languages.register({ id: languageId });
-      
+      // Register the language with Monaco (only once)
+      try {
+        monaco.languages.register({ id: languageId });
+      } catch (e) {
+        // Language might already be registered, ignore error
+      }
+
       // Set the tokens provider using monaco-textmate
-      const grammarDefinition = await registryRef.current.loadGrammar(grammar.scopeName || languageId);
+      const grammarDefinition = await grammarCache.registry.loadGrammar(grammar.scopeName || languageId);
       if (grammarDefinition) {
         monaco.languages.setTokensProvider(languageId, {
           getInitialState: () => null,
@@ -120,7 +171,7 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({
           }
         });
       }
-      
+
       console.log(`TextMate grammar registered for language: ${languageId}`);
     } catch (error) {
       console.error('Failed to register TextMate grammar:', error);

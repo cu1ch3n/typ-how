@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,6 +34,7 @@ export const ExpressionInput = forwardRef<MonacoEditorRef, ExpressionInputProps>
   const [leftType, setLeftType] = useState<string>('');
   const [rightType, setRightType] = useState<string>('');
   const [addToHistoryFunction, setAddToHistoryFunction] = useState<((expression: string) => void) | null>(null);
+  const isUpdatingFromExpression = useRef(false);
   
   const selectedAlgorithmData = algorithms.find(a => a.Id === selectedAlgorithm);
   const isSubtypingMode = selectedAlgorithmData?.Mode === 'subtyping';
@@ -97,7 +98,7 @@ export const ExpressionInput = forwardRef<MonacoEditorRef, ExpressionInputProps>
 
   // Update expression when left/right types change in subtyping mode
   useEffect(() => {
-    if (isSubtypingMode && (leftType || rightType)) {
+    if (isSubtypingMode && (leftType || rightType) && !isUpdatingFromExpression.current) {
       const newExpression = leftType && rightType ? `${leftType} <: ${rightType}` : leftType || rightType;
       onExpressionChange(newExpression);
     }
@@ -108,8 +109,18 @@ export const ExpressionInput = forwardRef<MonacoEditorRef, ExpressionInputProps>
     if (isSubtypingMode && expression && expression.includes(' <: ')) {
       const parts = expression.split(' <: ');
       if (parts.length === 2) {
-        setLeftType(parts[0].trim());
-        setRightType(parts[1].trim());
+        const newLeftType = parts[0].trim();
+        const newRightType = parts[1].trim();
+        // Only update if values actually changed to prevent unnecessary re-renders
+        if (newLeftType !== leftType || newRightType !== rightType) {
+          isUpdatingFromExpression.current = true;
+          setLeftType(newLeftType);
+          setRightType(newRightType);
+          // Reset flag after state updates are processed
+          setTimeout(() => {
+            isUpdatingFromExpression.current = false;
+          }, 0);
+        }
       }
     }
   }, [expression, isSubtypingMode]);

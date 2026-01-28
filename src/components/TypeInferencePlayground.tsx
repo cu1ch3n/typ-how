@@ -299,7 +299,7 @@ export const TypeInferencePlayground = () => {
     if (initialized && expression.trim() && selectedAlgorithm) {
       const timer = setTimeout(() => {
         handleInference();
-      }, 100);
+      }, 500); // Increased from 100ms to 500ms to reduce CPU usage
       return () => clearTimeout(timer);
     }
   }, [selectedAlgorithm, selectedVariant, expression, initialized]);
